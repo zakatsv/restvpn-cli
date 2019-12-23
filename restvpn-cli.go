@@ -58,9 +58,9 @@ func postTunnel(apiAddr string, apiKey string, params TunnelParams) string {
 	if error != nil {
 		log.Fatalln(error)
 	}
+	request.Header.Add("Content-Type", "application/json")
 	if apiKey != "" {
 		request.Header.Add("X-Api-Key", apiKey)
-		request.Header.Add("Content-Type", "application/json")
 	}
 	response, error := client.Do(request)
 	if error != nil {
@@ -89,9 +89,9 @@ func updateTunnel(apiAddr string, apiKey string, params TunnelParams) string {
 	if error != nil {
 		log.Fatalln(error)
 	}
+	request.Header.Add("Content-Type", "application/json")
 	if apiKey != "" {
 		request.Header.Add("X-Api-Key", apiKey)
-		request.Header.Add("Content-Type", "application/json")
 	}
 	response, error := client.Do(request)
 	if error != nil {
