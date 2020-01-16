@@ -11,18 +11,17 @@ import (
 	"os"
 )
 
-type TunnelParams struct {
-	customer   string
+type RouteParams struct {
+	commonName string
 	remoteIp   string
 	remotePort string
 	desc       string
-	mask       string
-	gateway    string
+	netmask    string
 }
 
-func getTunnels(apiAddr string, apiKey string, customer string) string {
+func getRoutes(apiAddr string, apiKey string, commonName string) string {
 	client := http.Client{}
-	request, error := http.NewRequest("GET", apiAddr+"/restvpn/tunnels/"+customer, nil)
+	request, error := http.NewRequest("GET", apiAddr+"/restvpn/routes/"+commonName, nil)
 	if error != nil {
 		log.Fatalln(error)
 	}
@@ -41,20 +40,19 @@ func getTunnels(apiAddr string, apiKey string, customer string) string {
 	return string(body)
 }
 
-func postTunnel(apiAddr string, apiKey string, params TunnelParams) string {
+func postRoute(apiAddr string, apiKey string, params RouteParams) string {
 	requestBody, error := json.Marshal(map[string]string{
-		"customer":    params.customer,
+		"common_name": params.commonName,
 		"remote_ip":   params.remoteIp,
 		"remote_port": params.remotePort,
 		"description": params.desc,
-		"mask":        params.mask,
-		"gateway":     params.gateway,
+		"netmask":     params.netmask,
 	})
 	if error != nil {
 		log.Fatalln("Failed composing requestBody: ", error)
 	}
 	client := http.Client{}
-	request, error := http.NewRequest("POST", apiAddr+"/restvpn/tunnels", bytes.NewBuffer(requestBody))
+	request, error := http.NewRequest("POST", apiAddr+"/restvpn/routes", bytes.NewBuffer(requestBody))
 	if error != nil {
 		log.Fatalln(error)
 	}
@@ -74,18 +72,17 @@ func postTunnel(apiAddr string, apiKey string, params TunnelParams) string {
 	return string(body)
 }
 
-func updateTunnel(apiAddr string, apiKey string, params TunnelParams) string {
+func updateRoute(apiAddr string, apiKey string, params RouteParams) string {
 	requestBody, error := json.Marshal(map[string]string{
 		"remote_port": params.remotePort,
 		"description": params.desc,
-		"mask":        params.mask,
-		"gateway":     params.gateway,
+		"netmask":     params.netmask,
 	})
 	if error != nil {
 		log.Fatalln("Failed composing requestBody: ", error)
 	}
 	client := http.Client{}
-	request, error := http.NewRequest("PUT", apiAddr+"/restvpn/tunnels/"+params.customer+"/"+params.remoteIp, bytes.NewBuffer(requestBody))
+	request, error := http.NewRequest("PUT", apiAddr+"/restvpn/routes/"+params.commonName+"/"+params.remoteIp, bytes.NewBuffer(requestBody))
 	if error != nil {
 		log.Fatalln(error)
 	}
@@ -105,9 +102,9 @@ func updateTunnel(apiAddr string, apiKey string, params TunnelParams) string {
 	return string(body)
 }
 
-func deleteTunnel(apiAddr string, apiKey string, params TunnelParams) string {
+func deleteRoute(apiAddr string, apiKey string, params RouteParams) string {
 	client := http.Client{}
-	request, error := http.NewRequest("DELETE", apiAddr+"/restvpn/tunnels/"+params.customer+"/"+params.remoteIp, nil)
+	request, error := http.NewRequest("DELETE", apiAddr+"/restvpn/routes/"+params.commonName+"/"+params.remoteIp, nil)
 	if error != nil {
 		log.Fatalln(error)
 	}
@@ -143,104 +140,99 @@ func main() {
 		Warning: Make sure to set RESTVPN_ADDR and RESTVPN_KEY.
 		CLI supports one of the following commands: list, get, add, update, delete`)
 	case "list":
-		if len(flag.Args()) > 1 {
+		if len(os.Args) > 2 {
 			fmt.Println("WARNING: 'list' command does not accept any arguments")
 		}
-		fmt.Print(getTunnels(apiAddr, apiKey, ""))
+		fmt.Print(getRoutes(apiAddr, apiKey, ""))
 	case "get":
 		getSubcommand := flag.NewFlagSet("get", flag.ExitOnError)
 
-		var customer string
-		getSubcommand.StringVar(&customer, "customer", "", "Customer name (required)")
+		var commonName string
+		getSubcommand.StringVar(&commonName, "cname", "", "Common name (required)")
 
 		getSubcommand.Parse(os.Args[2:])
 		if getSubcommand.Parsed() {
-			if customer == "" {
+			if commonName == "" {
 				getSubcommand.PrintDefaults()
 				os.Exit(1)
 			}
-			fmt.Print(getTunnels(apiAddr, apiKey, customer))
+			fmt.Print(getRoutes(apiAddr, apiKey, commonName))
 		}
 	case "add":
 		addSubcommand := flag.NewFlagSet("add", flag.ExitOnError)
 
-		var customer string
+		var commonName string
 		var remoteIp string
 		var remotePort string
 		var desc string
-		var mask string
-		var gateway string
-		addSubcommand.StringVar(&customer, "customer", "", "Customer name (required)")
-		addSubcommand.StringVar(&remoteIp, "ip", "", "Tunnel ip (required)")
-		addSubcommand.StringVar(&remotePort, "port", "", "Tunnel port (required)")
+		var netmask string
+		addSubcommand.StringVar(&commonName, "cname", "", "Common name (required)")
+		addSubcommand.StringVar(&remoteIp, "ip", "", "Remote ip (required)")
+		addSubcommand.StringVar(&remotePort, "port", "", "Remote port (required)")
 		addSubcommand.StringVar(&desc, "desc", "", "Brief description")
-		addSubcommand.StringVar(&mask, "mask", "", "Route netmask")
-		addSubcommand.StringVar(&gateway, "gw", "", "Route gateway")
+		addSubcommand.StringVar(&netmask, "mask", "", "Route netmask")
 
 		addSubcommand.Parse(os.Args[2:]) // flag.Parse() for addSubcommand
 		if addSubcommand.Parsed() {
-			if customer == "" || remoteIp == "" || remotePort == "" {
+			if commonName == "" || remoteIp == "" || remotePort == "" {
 				addSubcommand.PrintDefaults()
 				os.Exit(1)
 			}
-			params := TunnelParams{
-				customer:   customer,
+			params := RouteParams{
+				commonName: commonName,
 				remoteIp:   remoteIp,
 				remotePort: remotePort,
 			}
-			fmt.Print(postTunnel(apiAddr, apiKey, params))
+			fmt.Print(postRoute(apiAddr, apiKey, params))
 		}
 	case "update":
 		updateSubcommand := flag.NewFlagSet("update", flag.ExitOnError)
 
-		var customer string
+		var commonName string
 		var remoteIp string
 		var remotePort string
 		var desc string
-		var mask string
-		var gateway string
-		updateSubcommand.StringVar(&customer, "customer", "", "Customer name (required)")
-		updateSubcommand.StringVar(&remoteIp, "ip", "", "Tunnel ip (required)")
-		updateSubcommand.StringVar(&remotePort, "port", "", "Tunnel port")
+		var netmask string
+		updateSubcommand.StringVar(&commonName, "cname", "", "Common name (required)")
+		updateSubcommand.StringVar(&remoteIp, "ip", "", "Remote ip (required)")
+		updateSubcommand.StringVar(&remotePort, "port", "", "Remote port")
 		updateSubcommand.StringVar(&desc, "desc", "", "Brief description")
-		updateSubcommand.StringVar(&mask, "mask", "", "Route netmask")
-		updateSubcommand.StringVar(&gateway, "gw", "", "Route gateway")
+		updateSubcommand.StringVar(&netmask, "mask", "", "Route netmask")
 
 		updateSubcommand.Parse(os.Args[2:])
 		if updateSubcommand.Parsed() {
-			if customer == "" || remoteIp == "" {
+			if commonName == "" || remoteIp == "" {
 				updateSubcommand.PrintDefaults()
 				os.Exit(1)
 			}
-			params := TunnelParams{
-				customer:   customer,
+			params := RouteParams{
+				commonName: commonName,
 				remoteIp:   remoteIp,
 				remotePort: remotePort,
 				desc:       desc,
-				mask:       mask,
-				gateway:    gateway,
+				netmask:    netmask,
 			}
-			fmt.Print(updateTunnel(apiAddr, apiKey, params))
+			fmt.Print(updateRoute(apiAddr, apiKey, params))
 		}
 	case "delete":
 		deleteSubcommand := flag.NewFlagSet("delete", flag.ExitOnError)
 
-		var customer string
+		var commonName string
 		var remoteIp string
-		deleteSubcommand.StringVar(&customer, "customer", "", "Customer name (required)")
-		deleteSubcommand.StringVar(&remoteIp, "ip", "", "Tunnel ip (required)")
+		deleteSubcommand.StringVar(&commonName, "cname", "", "Common name (required)")
+		deleteSubcommand.StringVar(&remoteIp, "ip", "", "Remote ip (required)")
 
 		deleteSubcommand.Parse(os.Args[2:])
 		if deleteSubcommand.Parsed() {
-			if customer == "" || remoteIp == "" {
+			if commonName == "" || remoteIp == "" {
 				deleteSubcommand.PrintDefaults()
 				os.Exit(1)
 			}
-			params := TunnelParams{
-				customer: customer,
-				remoteIp: remoteIp,
+			params := RouteParams{
+				commonName: commonName,
+				remoteIp:   remoteIp,
 			}
-			fmt.Print(deleteTunnel(apiAddr, apiKey, params))
+			fmt.Print(deleteRoute(apiAddr, apiKey, params))
 		}
 	default:
 		fmt.Println("HELP: 'list', 'get', 'add', 'update' or 'delete' subcommand is required")
